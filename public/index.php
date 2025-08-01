@@ -80,44 +80,59 @@ $conn->close();
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Services</title>
-    <link rel="stylesheet" href="css/style.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
 </head>
-<body>
-    <div class="container">
-        <h2>Welcome, <?php echo htmlspecialchars($_SESSION['name']); ?>!</h2>
-        <p>Your current balance: (Will implement balance check later)</p>
-        <h3>Available Services</h3>
+<body class="bg-gray-100 font-sans">
+    <nav class="bg-blue-600 p-4 text-white shadow-md">
+        <div class="container mx-auto flex justify-between items-center">
+            <a href="index.php" class="text-2xl font-bold"><i class="fas fa-users mr-2"></i>SMM Reseller</a>
+            <div class="space-x-4">
+                <a href="index.php" class="hover:underline"><i class="fas fa-th-list mr-1"></i>Services</a>
+                <a href="status.php" class="hover:underline"><i class="fas fa-history mr-1"></i>My Orders</a>
+                <a href="balance.php" class="hover:underline"><i class="fas fa-wallet mr-1"></i>My Balance</a>
+                <?php if ($_SESSION['is_admin']): ?>
+                    <a href="admin_dashboard.php" class="hover:underline"><i class="fas fa-tachometer-alt mr-1"></i>Admin Dashboard</a>
+                <?php endif; ?>
+                <a href="logout.php" class="bg-red-500 hover:bg-red-700 px-3 py-2 rounded-md"><i class="fas fa-sign-out-alt mr-1"></i>Logout</a>
+            </div>
+        </div>
+    </nav>
+    <div class="container mx-auto p-6 bg-white rounded-lg shadow-md mt-6" data-aos="fade-up">
+        <h2 class="text-3xl font-bold mb-4 text-gray-800" data-aos="fade-right">Welcome, <?php echo htmlspecialchars($_SESSION['name']); ?>!</h2>
+        <p class="text-lg text-gray-700 mb-6" data-aos="fade-left">Your current balance: <span class="font-semibold text-blue-600">$<?php echo number_format($_SESSION['balance'], 2); ?></span></p>
+        <h3 class="text-2xl font-semibold mb-4 text-gray-800" data-aos="fade-right">Available Services</h3>
         <?php if (!empty($services)): ?>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Service Name</th>
-                        <th>Category</th>
-                        <th>Rate</th>
-                        <th>Min Order</th>
-                        <th>Max Order</th>
-                        <th>Refill</th>
-                        <th>Action</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php foreach ($services as $service): ?>
-                        <tr>
-                            <td><?php echo htmlspecialchars($service['name']); ?></td>
-                            <td><?php echo htmlspecialchars($service['category']); ?></td>
-                            <td>$<?php echo number_format($service['rate'] + GLOBAL_MARKUP_AMOUNT, 2); ?></td>
-                            <td><?php echo htmlspecialchars($service['min']); ?></td>
-                            <td><?php echo htmlspecialchars($service['max']); ?></td>
-                            <td><?php echo ($service['refill'] ? 'Yes' : 'No'); ?></td>
-                            <td><a href="order.php?service_id=<?php echo htmlspecialchars($service['service_id']); ?>">Order</a></td>
-                        </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <?php foreach ($services as $service): ?>
+                    <div class="bg-white rounded-lg shadow-lg overflow-hidden transition-transform duration-300 hover:scale-105" data-aos="zoom-in">
+                        <div class="p-6">
+                            <h4 class="text-xl font-semibold text-gray-900 mb-2"><i class="fas fa-cogs mr-2"></i><?php echo htmlspecialchars($service['name']); ?></h4>
+                            <p class="text-gray-600 text-sm mb-4"><i class="fas fa-tag mr-1"></i><?php echo htmlspecialchars($service['category']); ?></p>
+                            <div class="flex justify-between items-center mb-4">
+                                <span class="text-2xl font-bold text-blue-600">$<?php echo number_format($service['rate'] + GLOBAL_MARKUP_AMOUNT, 2); ?></span>
+                                <span class="text-sm text-gray-500">per unit</span>
+                            </div>
+                            <ul class="text-gray-700 text-sm mb-6 space-y-1">
+                                <li><i class="fas fa-arrow-down mr-2"></i><strong>Min Order:</strong> <?php echo htmlspecialchars($service['min']); ?></li>
+                                <li><i class="fas fa-arrow-up mr-2"></i><strong>Max Order:</strong> <?php echo htmlspecialchars($service['max']); ?></li>
+                                <li><i class="fas fa-redo mr-2"></i><strong>Refill:</strong> <?php echo ($service['refill'] ? 'Yes' : 'No'); ?></li>
+                            </ul>
+                            <a href="order.php?service_id=<?php echo htmlspecialchars($service['service_id']); ?>" class="block w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-md text-center transition-colors duration-300">
+                                <i class="fas fa-shopping-cart mr-2"></i>Order Now
+                            </a>
+                        </div>
+                    </div>
+                <?php endforeach; ?>
+            </div>
         <?php else: ?>
-            <p>No services available at the moment. Please try again later.</p>
+            <p class="text-gray-700">No services available at the moment. Please try again later.</p>
         <?php endif; ?>
-        <p><a href="logout.php">Logout</a></p>
     </div>
+    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+    <script>
+        AOS.init();
+    </script>
 </body>
 </html> 

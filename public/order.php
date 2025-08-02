@@ -15,10 +15,10 @@ $success_message = '';
 
 // Fetch service details based on service_id from URL
 if (isset($_GET['service_id']) && is_numeric($_GET['service_id'])) {
-    $service_id = $_GET['service_id'];
+    $service_id_from_url = $_GET['service_id'];
 
-    $stmt = $conn->prepare("SELECT id, service_id, name, type, category, rate, min, max, refill FROM services WHERE id = ?");
-    $stmt->bind_param("i", $service_id);
+    $stmt = $conn->prepare("SELECT id, service_id, name, type, category, rate, min, max, refill FROM services WHERE service_id = ?");
+    $stmt->bind_param("i", $service_id_from_url);
     $stmt->execute();
     $result = $stmt->get_result();
 
@@ -29,7 +29,7 @@ if (isset($_GET['service_id']) && is_numeric($_GET['service_id'])) {
     }
     $stmt->close();
 } else {
-    $error_message = "Invalid service ID.";
+    $error_message = "Invalid service ID provided.";
 }
 
 // Handle order placement
@@ -45,9 +45,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['place_order'])) {
             $error_message = "Link cannot be empty.";
         } else {
             // Calculate prices
-            $markup_amount = GLOBAL_MARKUP_AMOUNT;
+            $markup_percentage = GLOBAL_MARKUP_PERCENTAGE;
             $real_price_per_unit = $service['rate'];
-            $user_price_per_unit = $real_price_per_unit + $markup_amount;
+            $user_price_per_unit = $real_price_per_unit * $markup_percentage; // Apply percentage markup
             
             $real_total_cost = $real_price_per_unit * $order_quantity;
             $user_total_price = $user_price_per_unit * $order_quantity;
@@ -106,9 +106,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['place_order'])) {
                             // Record profit transaction for the manager (or system)
                             $profit_desc = "Profit from order #" . $order_id;
                             $insert_profit_stmt = $conn->prepare("INSERT INTO transactions (user_id, order_id, type, amount, description) VALUES (?, ?, ?, ?, ?)");
-                            // For simplicity, associating profit with a dummy admin user_id 1 (assuming admin is user_id 1) or leave user_id as NULL if tracking system-wide profit
-                            // For now, let's link it to the ordering user, but mark as 'profit' type. This needs a dedicated admin account or system account later.
-                            $admin_user_id = 1; // Assuming admin user_id is 1. This should be made dynamic or a system account.
+                            $admin_user_id = 1; 
                             $profit_type = 'profit';
                             $insert_profit_stmt->bind_param("iisds", $admin_user_id, $order_id, $profit_type, $profit, $profit_desc);
                             $insert_profit_stmt->execute();
@@ -117,7 +115,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['place_order'])) {
                             $success_message = "Order placed successfully! Secsers Order ID: " . $secsers_order_id;
                         } else {
                             $error_message = "Failed to save order to database.";
-                            // Rollback balance deduction if order saving fails
                             $rollback_balance = $_SESSION['balance'] + $user_total_price;
                             $rollback_stmt = $conn->prepare("UPDATE users SET balance = ? WHERE id = ?");
                             $rollback_stmt->bind_param("di", $rollback_balance, $user_id);
@@ -127,7 +124,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['place_order'])) {
                         $insert_stmt->close();
                     } elseif (isset($secsers_response['error'])) {
                         $error_message = "Secsers API Error: " . htmlspecialchars($secsers_response['error']);
-                        // Rollback balance deduction if Secsers API call fails
                         $rollback_balance = $_SESSION['balance'] + $user_total_price;
                         $rollback_stmt = $conn->prepare("UPDATE users SET balance = ? WHERE id = ?");
                         $rollback_stmt->bind_param("di", $rollback_balance, $user_id);
@@ -136,7 +132,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['place_order'])) {
                     } else {
                         $error_message = "Unknown error from Secsers API or invalid response.";
                         error_log("Secsers API Raw Response: " . $response);
-                        // Rollback balance deduction if Secsers API call fails
                         $rollback_balance = $_SESSION['balance'] + $user_total_price;
                         $rollback_stmt = $conn->prepare("UPDATE users SET balance = ? WHERE id = ?");
                         $rollback_stmt->bind_param("di", $rollback_balance, $user_id);
@@ -193,7 +188,7 @@ $conn->close();
 
         <?php if ($service): ?>
             <h3 class="text-2xl font-semibold mb-4 text-gray-800" data-aos="fade-right">Service: <?php echo htmlspecialchars($service['name']); ?> (<?php echo htmlspecialchars($service['category']); ?>)</h3>
-            <p class="text-gray-700 mb-2" data-aos="fade-left">Rate (with markup): <span class="font-semibold">$<?php echo number_format($service['rate'] + GLOBAL_MARKUP_AMOUNT, 2); ?></span> per unit</p>
+            <p class="text-gray-700 mb-2" data-aos="fade-left">Rate (with markup): <span class="font-semibold">$<?php echo number_format($service['rate'] * GLOBAL_MARKUP_PERCENTAGE, 2); ?></span> per unit</p>
             <p class="text-gray-700 mb-2" data-aos="fade-left">Min Quantity: <span class="font-semibold"><?php echo htmlspecialchars($service['min']); ?></span></p>
             <p class="text-gray-700 mb-2" data-aos="fade-left">Max Quantity: <span class="font-semibold"><?php echo htmlspecialchars($service['max']); ?></span></p>
             <p class="text-gray-700 mb-6" data-aos="fade-left">Refill: <span class="font-semibold"><?php echo ($service['refill'] ? 'Yes' : 'No'); ?></span></p>

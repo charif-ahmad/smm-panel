@@ -8,7 +8,6 @@ include '../includes/login.php';
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://www.google.com/recaptcha/api.js" async defer></script>
 </head>
 <body class="bg-gray-100 flex items-center justify-center min-h-screen">
     <div class="bg-white p-8 rounded-lg shadow-md w-full max-w-sm text-center">
@@ -27,9 +26,6 @@ include '../includes/login.php';
                 case 'email_not_found':
                     $message = "No user found with that email.";
                     break;
-                case 'recaptcha_failed':
-                    $message = "reCAPTCHA verification failed. Please try again.";
-                    break;
                 case 'registration_successful':
                     $message = "Registration successful! Please login.";
                     echo '<p class="text-green-500 mb-4">' . $message . '</p>';
@@ -37,9 +33,7 @@ include '../includes/login.php';
                 default:
                     $message = "An unknown error occurred.";
             }
-            if ($error_message !== 'registration_successful') {
-                echo '<p class="text-red-500 mb-4">' . $message . '</p>';
-            }
+            echo '<p class="text-red-500 mb-4">' . $message . '</p>';
         }
         ?>
         <form action="../includes/login.php" method="POST">
@@ -50,9 +44,6 @@ include '../includes/login.php';
             <div class="mb-6">
                 <label for="password" class="block text-gray-700 text-sm font-bold mb-2">Password:</label>
                 <input type="password" id="password" name="password" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 mb-3 leading-tight focus:outline-none focus:shadow-outline" required>
-            </div>
-            <div class="mb-6 flex justify-center">
-                <div class="g-recaptcha" data-sitekey="<?php require_once __DIR__ . '/../includes/config.php'; echo RECAPTCHA_SITE_KEY; ?>"></div>
             </div>
             <button type="submit" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline w-full">
                 Login

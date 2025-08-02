@@ -70,7 +70,7 @@ CREATE TABLE `orders` (
 CREATE TABLE `admin_settings` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `api_key` varchar(255) NOT NULL,
-  `markup_amount` decimal(10,2) NOT NULL,
+  `markup_percentage` decimal(10,2) NOT NULL DEFAULT 1.00,
   `last_updated` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -98,4 +98,4 @@ CREATE TABLE `transactions` (
 -- Initial data for `admin_settings`
 --
 INSERT INTO `admin_settings` (`id`, `api_key`, `markup_amount`) VALUES
-(1, 'YOUR_SECSERS_API_KEY', 0.25); 
+(1, 'fda14a84ed59996cc089a38c9fdbc48e', 1.00); 

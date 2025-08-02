@@ -201,12 +201,23 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['update_order_status'])
     }
 }
 
+// Fetch current markup percentage
+$markup_percentage = GLOBAL_MARKUP_PERCENTAGE;
+$stmt = $conn->prepare("SELECT markup_amount FROM admin_settings WHERE id = 1");
+$stmt->execute();
+$stmt->bind_result($db_markup_percentage);
+$stmt->fetch();
+$stmt->close();
+if ($db_markup_percentage !== null) {
+    $markup_percentage = $db_markup_percentage;
+}
+
 // Handle markup update
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['update_markup'])) {
-    $new_markup = filter_input(INPUT_POST, 'markup_amount', FILTER_VALIDATE_FLOAT);
-    if ($new_markup !== false && $new_markup >= 0) {
-        $update_stmt = $conn->prepare("UPDATE admin_settings SET markup_amount = ? WHERE id = 1");
-        $update_stmt->bind_param("d", $new_markup);
+    $new_markup_percentage = filter_input(INPUT_POST, 'markup_percentage', FILTER_VALIDATE_FLOAT);
+    if ($new_markup_percentage !== false && $new_markup_percentage >= 0) {
+        $update_stmt = $conn->prepare("UPDATE admin_settings SET markup_percentage = ? WHERE id = 1");
+        $update_stmt->bind_param("d", $new_markup_percentage);
         if ($update_stmt->execute()) {
             // Update successful, refresh page to show new value
             header("Location: admin_dashboard.php?success=markup_updated");
@@ -218,7 +229,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['update_markup'])) {
         }
         $update_stmt->close();
     } else {
-        header("Location: admin_dashboard.php?error=invalid_markup_amount");
+        header("Location: admin_dashboard.php?error=invalid_markup_amount"); // Keep error name for consistency for now
         exit();
     }
 }
@@ -278,8 +289,8 @@ $conn->close();
         <?php endif; ?>
         <form action="admin_dashboard.php" method="POST" class="max-w-md mx-auto mb-8" data-aos="zoom-in">
             <div class="mb-4">
-                <label for="markup_amount" class="block text-gray-700 text-sm font-bold mb-2">Global Markup Amount:</label>
-                <input type="number" id="markup_amount" name="markup_amount" step="0.01" min="0" value="<?php echo htmlspecialchars($markup_amount); ?>" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" required>
+                <label for="markup_percentage" class="block text-gray-700 text-sm font-bold mb-2">Global Markup Percentage (e.g., 1.25 for 25% markup):</label>
+                <input type="number" id="markup_percentage" name="markup_percentage" step="0.01" min="0" value="<?php echo htmlspecialchars($markup_percentage); ?>" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" required>
             </div>
             <button type="submit" name="update_markup" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline w-full">
                 <i class="fas fa-sliders-h mr-2"></i>Update Markup

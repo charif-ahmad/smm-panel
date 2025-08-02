@@ -111,7 +111,7 @@ $conn->close();
                             <h4 class="text-xl font-semibold text-gray-900 mb-2"><i class="fas fa-cogs mr-2"></i><?php echo htmlspecialchars($service['name']); ?></h4>
                             <p class="text-gray-600 text-sm mb-4"><i class="fas fa-tag mr-1"></i><?php echo htmlspecialchars($service['category']); ?></p>
                             <div class="flex justify-between items-center mb-4">
-                                <span class="text-2xl font-bold text-blue-600">$<?php echo number_format($service['rate'] + GLOBAL_MARKUP_AMOUNT, 2); ?></span>
+                                <span class="text-2xl font-bold text-blue-600">$<?php echo number_format($service['rate'] * GLOBAL_MARKUP_PERCENTAGE, 2); ?></span>
                                 <span class="text-sm text-gray-500">per unit</span>
                             </div>
                             <ul class="text-gray-700 text-sm mb-6 space-y-1">

@@ -8,24 +8,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $password = $_POST['password'];
     $confirm_password = $_POST['confirm_password'];
 
-    // reCAPTCHA verification
-    if (isset($_POST['g-recaptcha-response'])) {
-        $recaptcha_response = $_POST['g-recaptcha-response'];
-        $verify_url = 'https://www.google.com/recaptcha/api/siteverify';
-        $response_data = file_get_contents($verify_url . '?secret=' . RECAPTCHA_SECRET_KEY . '&response=' . $recaptcha_response);
-        $recaptcha_result = json_decode($response_data, true);
-
-        if (!$recaptcha_result['success']) {
-            // reCAPTCHA verification failed
-            header("Location: ../public/register.php?error=recaptcha_failed");
-            exit();
-        }
-    } else {
-        // reCAPTCHA not submitted
-        header("Location: ../public/register.php?error=recaptcha_failed");
-        exit();
-    }
-
     if (empty($name) || empty($email) || empty($password) || empty($confirm_password)) {
         // Handle empty fields
         header("Location: ../public/register.php?error=empty_fields");

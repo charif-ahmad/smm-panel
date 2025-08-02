@@ -60,54 +60,30 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['recharge_amount'])) {
     if ($recharge_amount === false || $recharge_amount <= 0) {
         $error_message = "Invalid recharge amount.";
     } elseif (empty($payment_method)) {
-        $error_message = "Please select a payment method.";
+        $error_message = "Please select a cryptocurrency method.";
     } else {
-        if (strpos($payment_method, 'USDT') !== false) {
-            // Crypto payment
-            $order_id = 'recharge_' . $user_id . '_' . time(); // Unique order ID
-            $ipn_callback_url = 'https://yourdomain.com/includes/nowpayments_webhook.php'; // Replace with your actual domain and webhook path
+        // Crypto payment
+        $order_id = 'recharge_' . $user_id . '_' . time(); // Unique order ID
+        $ipn_callback_url = 'https://yourdomain.com/includes/nowpayments_webhook.php'; // Replace with your actual domain and webhook path
 
-            $payment_response = createNowPaymentsPayment(NOWPAYMENTS_API_KEY, NOWPAYMENTS_API_URL, $order_id, $recharge_amount, $payment_method, $ipn_callback_url);
+        $payment_response = createNowPaymentsPayment(NOWPAYMENTS_API_KEY, NOWPAYMENTS_API_URL, $order_id, $recharge_amount, $payment_method, $ipn_callback_url);
 
-            if ($payment_response && isset($payment_response['pay_address']) && isset($payment_response['pay_amount']) && isset($payment_response['payment_id'])) {
-                $crypto_payment_details = [
-                    'pay_address' => $payment_response['pay_address'],
-                    'pay_amount' => $payment_response['pay_amount'],
-                    'pay_currency' => strtoupper($payment_response['pay_currency']),
-                    'payment_id' => $payment_response['payment_id'],
-                    'order_id' => $order_id
-                ];
-                // Store payment_id and order_id in session or temporary DB table for webhook verification
-                $_SESSION['current_np_payment'] = $crypto_payment_details;
-                $success_message = "Please send " . $crypto_payment_details['pay_amount'] . " " . $crypto_payment_details['pay_currency'] . " to the address below.";
-            } elseif ($payment_response && isset($payment_response['message'])) {
-                $error_message = "NowPayments API Error: " . htmlspecialchars($payment_response['message']);
-            } else {
-                $error_message = "Failed to initiate cryptocurrency payment. Unknown API error.";
-                error_log("NowPayments Raw Response [Recharge]: " . json_encode($payment_response));
-            }
+        if ($payment_response && isset($payment_response['pay_address']) && isset($payment_response['pay_amount']) && isset($payment_response['payment_id'])) {
+            $crypto_payment_details = [
+                'pay_address' => $payment_response['pay_address'],
+                'pay_amount' => $payment_response['pay_amount'],
+                'pay_currency' => strtoupper($payment_response['pay_currency']),
+                'payment_id' => $payment_response['payment_id'],
+                'order_id' => $order_id
+            ];
+            // Store payment_id and order_id in session or temporary DB table for webhook verification
+            $_SESSION['current_np_payment'] = $crypto_payment_details;
+            $success_message = "Please send " . $crypto_payment_details['pay_amount'] . " " . $crypto_payment_details['pay_currency'] . " to the address below.";
+        } elseif (isset($payment_response['message'])) {
+            $error_message = "NowPayments API Error: " . htmlspecialchars($payment_response['message']);
         } else {
-            // Manual payment (OMT, Whish, Cash United) - Existing logic
-            // Update user's balance
-            $update_balance_stmt = $conn->prepare("UPDATE users SET balance = balance + ? WHERE id = ?");
-            $update_balance_stmt->bind_param("di", $recharge_amount, $user_id);
-
-            if ($update_balance_stmt->execute()) {
-                $_SESSION['balance'] += $recharge_amount; // Update session balance
-
-                // Record deposit transaction
-                $transaction_desc = "Recharge via " . $payment_method;
-                $insert_transaction_stmt = $conn->prepare("INSERT INTO transactions (user_id, type, amount, description) VALUES (?, ?, ?, ?)");
-                $transaction_type = 'deposit';
-                $insert_transaction_stmt->bind_param("isds", $user_id, $transaction_type, $recharge_amount, $transaction_desc);
-                $insert_transaction_stmt->execute();
-                $insert_transaction_stmt->close();
-
-                $success_message = "Balance recharged successfully! Please contact support to confirm your manual payment.";
-            } else {
-                $error_message = "Failed to process recharge. Please try again.";
-            }
-            $update_balance_stmt->close();
+            $error_message = "Failed to initiate cryptocurrency payment. Unknown API error.";
+            error_log("NowPayments Raw Response [Recharge]: " . json_encode($payment_response));
         }
     }
 }
@@ -174,29 +150,25 @@ $conn->close();
         <?php else: ?>
             <form action="recharge.php" method="POST" class="max-w-md mx-auto" data-aos="zoom-in">
                 <div class="mb-4">
-                    <label for="recharge_amount" class="block text-gray-700 text-sm font-bold mb-2">Recharge Amount:</label>
+                    <label for="recharge_amount" class="block text-gray-700 text-sm font-bold mb-2">Recharge Amount (USD):</label>
                     <input type="number" id="recharge_amount" name="recharge_amount" step="0.01" min="0.01" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" required placeholder="e.g., 10.00">
                 </div>
                 <div class="mb-6">
-                    <label for="payment_method" class="block text-gray-700 text-sm font-bold mb-2">Payment Method:</label>
+                    <label for="payment_method" class="block text-gray-700 text-sm font-bold mb-2">Cryptocurrency Method:</label>
                     <select id="payment_method" name="payment_method" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" required>
-                        <option value="">Select a method</option>
-                        <option value="OMT">OMT</option>
-                        <option value="Whish">Whish</option>
-                        <option value="Cash United">Cash United</option>
+                        <option value="">Select a cryptocurrency</option>
                         <option value="USDT TRC20">USDT (TRC20)</option>
                         <option value="USDT ERC20">USDT (ERC20)</option>
+                        <option value="BTC">Bitcoin (BTC)</option>
+                        <option value="ETH">Ethereum (ETH)</option>
+                        <!-- Add more cryptocurrency options as needed -->
                     </select>
-                    <p class="text-gray-600 text-xs italic mt-1"><i class="fas fa-info-circle mr-1"></i>For cryptocurrency payments, instructions will be provided upon submission.</p>
+                    <p class="text-gray-600 text-xs italic mt-1"><i class="fas fa-info-circle mr-1"></i>Upon submission, you will receive a cryptocurrency address and exact amount to send.</p>
                 </div>
                 <button type="submit" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline w-full">
-                    <i class="fas fa-money-check-alt mr-2"></i>Submit Recharge Request
+                    <i class="fas fa-money-check-alt mr-2"></i>Generate Crypto Address
                 </button>
             </form>
-
-            <p class="mt-6 text-gray-600 text-sm">
-                <i class="fas fa-exclamation-triangle mr-1"></i>Note: For manual payment methods (OMT, Whish, Cash United), please contact support after submitting your request to complete the top-up.
-            </p>
         <?php endif; ?>
     </div>
     <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>

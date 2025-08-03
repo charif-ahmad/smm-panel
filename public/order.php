@@ -9,6 +9,119 @@ if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
     exit;
 }
 
+// Function to get service description from API response
+function getServiceDescription($service) {
+    $description = [];
+    
+    // Extract guarantee/refill info
+    if (isset($service['refill']) && $service['refill']) {
+        $description['Guarantee'] = 'Lifetime';
+    } else {
+        $description['Guarantee'] = 'No Refill';
+    }
+    
+    // Extract quality info
+    if (isset($service['type'])) {
+        $description['Quality'] = $service['type'];
+    } else {
+        $description['Quality'] = 'Real accounts';
+    }
+    
+    // Extract max order info
+    if (isset($service['max'])) {
+        if ($service['max'] >= 1000000) {
+            $description['Max'] = 'Unlimited';
+        } else {
+            $description['Max'] = number_format($service['max']);
+        }
+    } else {
+        $description['Max'] = 'Unlimited';
+    }
+    
+    // Extract location info (if available in API)
+    if (isset($service['location'])) {
+        $description['Location'] = $service['location'];
+    } else {
+        $description['Location'] = 'Worldwide';
+    }
+    
+    // Extract link format based on service name/category
+    if (strpos($service['name'], 'Followers') !== false || strpos($service['category'], 'Followers') !== false) {
+        $description['Link Format'] = 'Profile Link';
+    } elseif (strpos($service['name'], 'Subscribers') !== false || strpos($service['category'], 'Subscribers') !== false) {
+        $description['Link Format'] = 'Channel Link';
+    } elseif (strpos($service['name'], 'Views') !== false || strpos($service['category'], 'Views') !== false) {
+        $description['Link Format'] = 'Video Link';
+    } else {
+        $description['Link Format'] = 'Post Link';
+    }
+    
+    // Intelligent unit detection based on service name/category
+    $service_name_lower = strtolower($service['name'] . ' ' . $service['category']);
+    
+    // Per 1000 units (bulk services)
+    if (strpos($service_name_lower, 'followers') !== false || 
+        strpos($service_name_lower, 'likes') !== false || 
+        strpos($service_name_lower, 'views') !== false || 
+        strpos($service_name_lower, 'subscribers') !== false) {
+        
+        $description['PricingModel'] = 'per_1000';
+        $description['Unit'] = 'per 1000 ' . getUnitType($service);
+        
+    } 
+    // Per 1 unit (individual services)
+    elseif (strpos($service_name_lower, 'comments') !== false || 
+            strpos($service_name_lower, 'mentions') !== false || 
+            strpos($service_name_lower, 'shares') !== false || 
+            strpos($service_name_lower, 'retweets') !== false || 
+            strpos($service_name_lower, 'votes') !== false) {
+        
+        $description['PricingModel'] = 'per_1';
+        $description['Unit'] = 'per ' . getUnitType($service);
+        
+    } 
+    // Default fallback
+    else {
+        $description['PricingModel'] = 'per_1000';
+        $description['Unit'] = 'per 1000 ' . getUnitType($service);
+    }
+    
+    // Speed is usually consistent
+    $description['Speed'] = 'Fast';
+    
+    // Drop ratio
+    $description['Drop-Ratio'] = 'Non-Drop';
+    
+    return $description;
+}
+
+// Helper function to get unit type
+function getUnitType($service) {
+    $service_name_lower = strtolower($service['name'] . ' ' . $service['category']);
+    
+    if (strpos($service_name_lower, 'followers') !== false) {
+        return 'follower';
+    } elseif (strpos($service_name_lower, 'likes') !== false) {
+        return 'like';
+    } elseif (strpos($service_name_lower, 'views') !== false) {
+        return 'view';
+    } elseif (strpos($service_name_lower, 'subscribers') !== false) {
+        return 'subscriber';
+    } elseif (strpos($service_name_lower, 'comments') !== false) {
+        return 'comment';
+    } elseif (strpos($service_name_lower, 'mentions') !== false) {
+        return 'mention';
+    } elseif (strpos($service_name_lower, 'shares') !== false) {
+        return 'share';
+    } elseif (strpos($service_name_lower, 'retweets') !== false) {
+        return 'retweet';
+    } elseif (strpos($service_name_lower, 'votes') !== false) {
+        return 'vote';
+    } else {
+        return 'unit';
+    }
+}
+
 $service = null;
 $error_message = '';
 $success_message = '';
@@ -24,6 +137,8 @@ if (isset($_GET['service_id']) && is_numeric($_GET['service_id'])) {
 
     if ($result->num_rows == 1) {
         $service = $result->fetch_assoc();
+        // Get dynamic description for the service
+        $service['description'] = getServiceDescription($service);
     } else {
         $error_message = "Service not found.";
     }
@@ -161,9 +276,66 @@ $conn->close();
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+        }
+        .service-card {
+            background: rgba(30, 30, 50, 0.9);
+            border: 1px solid rgba(147, 51, 234, 0.3);
+            backdrop-filter: blur(10px);
+        }
+        .section-title {
+            color: #e2e8f0;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+        .service-dropdown {
+            background: rgba(30, 30, 50, 0.8);
+            border: 1px solid rgba(147, 51, 234, 0.5);
+            color: #e2e8f0;
+        }
+        .feature-list {
+            color: #e2e8f0;
+        }
+        .feature-list li {
+            color: #f0abfc;
+        }
+        .price-display {
+            background: rgba(30, 30, 50, 0.8);
+            border: 1px solid rgba(147, 51, 234, 0.5);
+            color: #e2e8f0;
+        }
+        .form-input {
+            background: rgba(30, 30, 50, 0.8);
+            border: 1px solid rgba(147, 51, 234, 0.5);
+            color: #e2e8f0;
+        }
+        .form-input:focus {
+            border-color: #a855f7;
+            box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.1);
+        }
+        .form-input::placeholder {
+            color: #9ca3af;
+        }
+        .form-select {
+            background: rgba(30, 30, 50, 0.8);
+            border: 1px solid rgba(147, 51, 234, 0.5);
+            color: #e2e8f0;
+        }
+        .form-select:focus {
+            border-color: #a855f7;
+            box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.1);
+        }
+        .form-select option {
+            background: #1a1a2e;
+            color: #e2e8f0;
+        }
+    </style>
 </head>
-<body class="bg-gray-100 font-sans">
-    <nav class="bg-blue-600 p-4 text-white shadow-md">
+<body class="font-sans">
+    <nav class="bg-gradient-to-r from-purple-900 to-indigo-900 p-4 text-white shadow-lg">
         <div class="container mx-auto flex justify-between items-center">
             <a href="index.php" class="text-2xl font-bold"><i class="fas fa-users mr-2"></i>SMM Reseller</a>
             <div class="space-x-4">
@@ -173,45 +345,259 @@ $conn->close();
                 <?php if ($_SESSION['is_admin']): ?>
                     <a href="admin_dashboard.php" class="hover:underline"><i class="fas fa-tachometer-alt mr-1"></i>Admin Dashboard</a>
                 <?php endif; ?>
-                <a href="logout.php" class="bg-red-500 hover:bg-red-700 px-3 py-2 rounded-md"><i class="fas fa-sign-out-alt mr-1"></i>Logout</a>
+                <a href="logout.php" class="bg-red-600 hover:bg-red-700 px-3 py-2 rounded-md transition-colors"><i class="fas fa-sign-out-alt mr-1"></i>Logout</a>
             </div>
         </div>
     </nav>
-    <div class="container mx-auto p-6 bg-white rounded-lg shadow-md mt-6" data-aos="fade-up">
-        <h2 class="text-3xl font-bold mb-4 text-gray-800" data-aos="fade-right">Place Order</h2>
-        <?php if ($error_message): ?>
-            <p class="text-red-500 mb-4" data-aos="fade-left"><i class="fas fa-exclamation-circle mr-2"></i><?php echo $error_message; ?></p>
-        <?php endif; ?>
-        <?php if ($success_message): ?>
-            <p class="text-green-500 mb-4" data-aos="fade-left"><i class="fas fa-check-circle mr-2"></i><?php echo $success_message; ?></p>
-        <?php endif; ?>
 
-        <?php if ($service): ?>
-            <h3 class="text-2xl font-semibold mb-4 text-gray-800" data-aos="fade-right">Service: <?php echo htmlspecialchars($service['name']); ?> (<?php echo htmlspecialchars($service['category']); ?>)</h3>
-            <p class="text-gray-700 mb-2" data-aos="fade-left">Rate (with markup): <span class="font-semibold">$<?php echo number_format($service['rate'] * GLOBAL_MARKUP_PERCENTAGE, 2); ?></span> per unit</p>
-            <p class="text-gray-700 mb-2" data-aos="fade-left">Min Quantity: <span class="font-semibold"><?php echo htmlspecialchars($service['min']); ?></span></p>
-            <p class="text-gray-700 mb-2" data-aos="fade-left">Max Quantity: <span class="font-semibold"><?php echo htmlspecialchars($service['max']); ?></span></p>
-            <p class="text-gray-700 mb-6" data-aos="fade-left">Refill: <span class="font-semibold"><?php echo ($service['refill'] ? 'Yes' : 'No'); ?></span></p>
-
-            <form action="order.php?service_id=<?php echo htmlspecialchars($service['id']); ?>" method="POST" data-aos="zoom-in">
-                <div class="mb-4">
-                    <label for="link" class="block text-gray-700 text-sm font-bold mb-2">Link:</label>
-                    <input type="url" id="link" name="link" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" required placeholder="e.g., Your Instagram post URL">
-                    <p class="text-gray-600 text-xs italic mt-1"><i class="fas fa-info-circle mr-1"></i>The link to your social media post or profile.</p>
+    <div class="container mx-auto p-6 mt-6">
+        <div class="service-card rounded-lg p-6" data-aos="fade-up">
+            <h2 class="text-3xl font-bold mb-6 text-white" data-aos="fade-right">Place Order</h2>
+            
+            <?php if ($error_message): ?>
+                <div class="bg-red-900/50 border border-red-500 text-red-200 p-4 rounded-lg mb-6" data-aos="fade-left">
+                    <i class="fas fa-exclamation-circle mr-2"></i><?php echo $error_message; ?>
                 </div>
+            <?php endif; ?>
+            
+            <?php if ($success_message): ?>
+                <div class="bg-green-900/50 border border-green-500 text-green-200 p-4 rounded-lg mb-6" data-aos="fade-left">
+                    <i class="fas fa-check-circle mr-2"></i><?php echo $success_message; ?>
+                </div>
+            <?php endif; ?>
+
+            <?php if ($service): ?>
+                <!-- Department Section -->
                 <div class="mb-6">
-                    <label for="quantity" class="block text-gray-700 text-sm font-bold mb-2">Quantity:</label>
-                    <input type="number" id="quantity" name="quantity" min="<?php echo htmlspecialchars($service['min']); ?>" max="<?php echo htmlspecialchars($service['max']); ?>" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 mb-3 leading-tight focus:outline-none focus:shadow-outline" required placeholder="Enter quantity">
-                    <p class="text-gray-600 text-xs italic mt-1"><i class="fas fa-info-circle mr-1"></i>Min: <?php echo htmlspecialchars($service['min']); ?>, Max: <?php echo htmlspecialchars($service['max']); ?></p>
+                    <h4 class="section-title">Department</h4>
+                    <div class="service-dropdown rounded-lg p-3 flex items-center justify-between">
+                        <div class="flex items-center">
+                            <?php
+                            $iconClass = 'fas fa-globe';
+                            if (strpos($service['category'], 'Instagram') !== false) {
+                                $iconClass = 'fab fa-instagram';
+                            } elseif (strpos($service['category'], 'TikTok') !== false) {
+                                $iconClass = 'fab fa-tiktok';
+                            } elseif (strpos($service['category'], 'YouTube') !== false) {
+                                $iconClass = 'fab fa-youtube';
+                            } elseif (strpos($service['category'], 'Twitter') !== false) {
+                                $iconClass = 'fab fa-twitter';
+                            }
+                            ?>
+                            <i class="<?php echo $iconClass; ?> text-pink-500 mr-2"></i>
+                            <span class="text-gray-300"><?php echo htmlspecialchars($service['category']); ?></span>
+                        </div>
+                        <i class="fas fa-chevron-down text-gray-400"></i>
+                    </div>
                 </div>
-                <button type="submit" name="place_order" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline w-full">
+
+                <!-- Services Section -->
+                <div class="mb-6">
+                    <h4 class="section-title">Services</h4>
+                    <div class="service-dropdown rounded-lg p-3 flex items-center justify-between">
+                        <div class="flex items-center">
+                            <i class="<?php echo $iconClass; ?> text-pink-500 mr-2"></i>
+                            <span class="text-gray-300"><?php echo htmlspecialchars($service['name']); ?></span>
+                            <i class="fas fa-check-circle text-green-500 ml-2"></i>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-purple-400 font-semibold">$<?php echo number_format($service['rate'] * GLOBAL_MARKUP_PERCENTAGE, 2); ?></span>
+                            <i class="fas fa-chevron-down text-gray-400 ml-2"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Description Section -->
+                <div class="mb-6">
+                    <h4 class="section-title">Description</h4>
+                    <?php
+                    // Use dynamic description from the API response
+                    $description = $service['description'];
+                    ?>
+                    <ul class="feature-list text-sm space-y-1">
+                        <li class="flex items-center">
+                            <span class="text-pink-400 mr-2">-</span>
+                            <span>Speed: <?php echo $description['Speed']; ?></span>
+                        </li>
+                        <li class="flex items-center">
+                            <span class="text-pink-400 mr-2">-</span>
+                            <span>Quality: <?php echo $description['Quality']; ?></span>
+                        </li>
+                        <li class="flex items-center">
+                            <span class="text-pink-400 mr-2">-</span>
+                            <span>Guarantee: <span class="underline"><?php echo $description['Guarantee']; ?></span></span>
+                        </li>
+                        <li class="flex items-center">
+                            <span class="text-pink-400 mr-2">-</span>
+                            <span>Drop-Ratio: <?php echo $description['Drop-Ratio']; ?></span>
+                        </li>
+                        <li class="flex items-center">
+                            <span class="text-pink-400 mr-2">-</span>
+                            <span>Link Format: <?php echo $description['Link Format']; ?></span>
+                        </li>
+                        <li class="flex items-center">
+                            <span class="text-pink-400 mr-2">-</span>
+                            <span>Max Order: <?php echo $description['Max']; ?></span>
+                        </li>
+                        <li class="flex items-center">
+                            <span class="text-pink-400 mr-2">-</span>
+                            <span>Location: <?php echo $description['Location']; ?></span>
+                        </li>
+                        <li class="flex items-center">
+                            <span class="text-pink-400 mr-2">-</span>
+                            <span>Unit: <?php echo $description['Unit']; ?></span>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- Notes Section -->
+                <div class="mb-6">
+                    <h4 class="section-title">Notes</h4>
+                    <ul class="feature-list text-sm space-y-1">
+                        <li class="flex items-start">
+                            <i class="fas fa-star text-pink-400 mr-2 mt-1"></i>
+                            <span>We can not cancel your order once it has been submitted.</span>
+                        </li>
+                        <li class="flex items-start">
+                            <i class="fas fa-star text-pink-400 mr-2 mt-1"></i>
+                            <span>Check the link format carefully before placing the order.</span>
+                        </li>
+                        <li class="flex items-start">
+                            <i class="fas fa-star text-pink-400 mr-2 mt-1"></i>
+                            <span>Kindly make sure your account is public, Not private.</span>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- Alert Section -->
+                <div class="mb-6">
+                    <h4 class="section-title">Alert</h4>
+                    <ul class="feature-list text-sm space-y-1">
+                        <li class="flex items-start">
+                            <i class="fas fa-exclamation-triangle text-yellow-500 mr-2 mt-1"></i>
+                            <span>Do not put multiple orders for the same link before completion.</span>
+                        </li>
+                        <li class="flex items-start">
+                            <i class="fas fa-exclamation-triangle text-yellow-500 mr-2 mt-1"></i>
+                            <span>We cannot refill your order if the drop is below the start count.</span>
+                        </li>
+                        <li class="flex items-start">
+                            <i class="fas fa-exclamation-triangle text-yellow-500 mr-2 mt-1"></i>
+                            <span>The Quantity must be in multiples of 100, 200, 500, 1000, etc.</span>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- Link Section -->
+                <div class="mb-6">
+                    <h4 class="section-title">Link</h4>
+                    <form action="order.php?service_id=<?php echo htmlspecialchars($service['id']); ?>" method="POST" data-aos="zoom-in">
+                        <input type="url" id="link" name="link" 
+                               class="form-input rounded-lg w-full py-3 px-4 focus:outline-none transition-all duration-300" 
+                               required placeholder="Enter your <?php echo strtolower($description['Link Format']); ?> here">
+                        <p class="text-gray-400 text-xs mt-2"><i class="fas fa-info-circle mr-1"></i>The <?php echo strtolower($description['Link Format']); ?> to your social media <?php echo strpos($description['Link Format'], 'Profile') !== false ? 'profile' : 'post'; ?>.</p>
+                </div>
+
+                <!-- Quantity Section -->
+                <div class="mb-6">
+                    <h4 class="section-title">Quantity</h4>
+                    <?php
+                    // Check if this is a single-use service
+                    $isSingleUse = false;
+                    
+                    // Check if min and max are both 1
+                    if ($service['min'] == 1 && $service['max'] == 1) {
+                        $isSingleUse = true;
+                    }
+                    
+                    // Check if service name contains single-use keywords
+                    $serviceNameLower = strtolower($service['name'] . ' ' . $service['category']);
+                    $singleUseKeywords = ['comment', 'vote', 'reaction', 'mention', 'share', 'retweet'];
+                    
+                    foreach ($singleUseKeywords as $keyword) {
+                        if (strpos($serviceNameLower, $keyword) !== false) {
+                            $isSingleUse = true;
+                            break;
+                        }
+                    }
+                    ?>
+                    <input type="number" id="quantity" name="quantity" 
+                           value="<?php echo $isSingleUse ? '1' : ''; ?>"
+                           min="<?php echo $isSingleUse ? '1' : htmlspecialchars($service['min']); ?>" 
+                           max="<?php echo $isSingleUse ? '1' : htmlspecialchars($service['max']); ?>" 
+                           class="form-input rounded-lg w-full py-3 px-4 focus:outline-none transition-all duration-300 <?php echo $isSingleUse ? 'bg-gray-700 cursor-not-allowed' : ''; ?>" 
+                           required 
+                           placeholder="<?php echo $isSingleUse ? 'Single use service - quantity locked to 1' : 'Enter quantity'; ?>"
+                           <?php echo $isSingleUse ? 'disabled' : ''; ?>>
+                    <?php if (!$isSingleUse): ?>
+                        <p class="text-gray-400 text-xs mt-2">
+                            <i class="fas fa-info-circle mr-1"></i>Min: <?php echo htmlspecialchars($service['min']); ?>, Max: <?php echo htmlspecialchars($service['max']); ?>
+                        </p>
+                    <?php endif; ?>
+                </div>
+
+                <!-- Charge Section -->
+                <div class="mb-6">
+                    <h4 class="section-title">Charge</h4>
+                    <div class="price-display rounded-lg p-3 text-center">
+                        <div class="mb-2">
+                            <span class="text-lg font-semibold text-purple-400">$<?php echo number_format($service['rate'] * GLOBAL_MARKUP_PERCENTAGE, 3); ?></span>
+                            <span class="text-gray-400 ml-2"><?php echo $description['Unit']; ?></span>
+                        </div>
+                        <div class="border-t border-gray-600 pt-2">
+                            <span class="text-2xl font-bold text-purple-400" id="totalPrice">
+                                $<?php echo $isSingleUse ? number_format($service['rate'] * GLOBAL_MARKUP_PERCENTAGE, 3) : '0.000'; ?>
+                            </span>
+                            <span class="text-gray-400 ml-2">total</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Submit Button -->
+                <button type="submit" name="place_order" 
+                        class="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold py-4 px-6 rounded-lg transition-all duration-300 transform hover:scale-105">
                     <i class="fas fa-paper-plane mr-2"></i>Place Order
                 </button>
-            </form>
-        <?php else: ?>
-            <p class="text-gray-700">Please select a service from the <a href="index.php" class="text-blue-500 hover:underline">services list</a>.</p>
-        <?php endif; ?>
+                </form>
+
+                <script>
+                    // Dynamic pricing calculation with intelligent unit detection
+                    const quantityInput = document.getElementById('quantity');
+                    const totalPriceElement = document.getElementById('totalPrice');
+                    const baseRate = <?php echo $service['rate'] * GLOBAL_MARKUP_PERCENTAGE; ?>;
+                    const pricingModel = '<?php echo $description['PricingModel']; ?>';
+                    const isSingleUse = <?php echo $isSingleUse ? 'true' : 'false'; ?>;
+                    
+                    // For single-use services, set total immediately and don't add event listener
+                    if (!isSingleUse) {
+                        quantityInput.addEventListener('input', function() {
+                            const quantity = parseFloat(this.value) || 0;
+                            let total;
+                            
+                            // Calculate total based on pricing model
+                            if (pricingModel === 'per_1') {
+                                // Per 1 unit pricing
+                                total = quantity * baseRate;
+                            } else {
+                                // Per 1000 units pricing (default)
+                                total = (quantity / 1000) * baseRate;
+                            }
+                            
+                            // Format to 3 decimal places
+                            totalPriceElement.textContent = `$${total.toFixed(3)}`;
+                        });
+                    }
+                </script>
+
+            <?php else: ?>
+                <div class="text-center py-8">
+                    <i class="fas fa-exclamation-circle text-gray-400 text-4xl mb-4"></i>
+                    <p class="text-gray-400">Please select a service from the <a href="index.php" class="text-purple-400 hover:underline">services list</a>.</p>
+                </div>
+            <?php endif; ?>
+        </div>
     </div>
+
     <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
     <script>
         AOS.init();
